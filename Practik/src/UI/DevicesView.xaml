@@ -1,0 +1,63 @@
+<UserControl x:Class="UI.DevicesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="900">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <DataGrid Grid.Column="0"
+                  ItemsSource="{Binding Devices}"
+                  SelectedItem="{Binding SelectedDevice}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  Style="{StaticResource MaterialDesignDataGrid}"
+                  HeadersVisibility="All"
+                  LoadingRow="DataGrid_LoadingRow">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Client" Binding="{Binding ClientName}" Width="200"/>
+                <DataGridTextColumn Header="Type" Binding="{Binding DeviceTypeName}" Width="*"/>
+                <DataGridTextColumn Header="Manufacturer" Binding="{Binding Manufacturer}" Width="*"/>
+                <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*"/>
+                <DataGridTextColumn Header="Serial" Binding="{Binding SerialNumber}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <materialDesign:Card Grid.Column="1" Padding="16" Margin="16,0,0,0" VerticalAlignment="Top">
+            <StackPanel>
+                <TextBlock Text="Devices" Style="{StaticResource MaterialDesignHeadline6TextBlock}" Margin="0,0,0,16"/>
+
+                <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="0,0,0,16"/>
+
+                <TextBlock Text="Add new device" Style="{StaticResource MaterialDesignSubtitle1TextBlock}" Margin="0,0,0,8"/>
+                <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                          materialDesign:HintAssist.Hint="Client"
+                          ItemsSource="{Binding Clients}"
+                          DisplayMemberPath="DisplayName"
+                          SelectedItem="{Binding SelectedClient}"
+                          Margin="0,0,0,8"/>
+
+                <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}"
+                          materialDesign:HintAssist.Hint="Device Type"
+                          ItemsSource="{Binding DeviceTypes}"
+                          DisplayMemberPath="Name"
+                          SelectedItem="{Binding SelectedDeviceType}"
+                          Margin="0,0,0,8"/>
+
+                <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" materialDesign:HintAssist.Hint="Manufacturer" Text="{Binding Manufacturer, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" materialDesign:HintAssist.Hint="Model" Text="{Binding Model, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8"/>
+                <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}" materialDesign:HintAssist.Hint="Serial Number" Text="{Binding SerialNumber, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,16"/>
+
+                <Button Content="Add" Command="{Binding AddDeviceCommand}" Margin="0,0,0,8"/>
+                <Button Content="Update" Command="{Binding UpdateDeviceCommand}" Margin="0,0,0,8"/>
+                <Button Content="Delete" Command="{Binding DeleteDeviceCommand}"/>
+            </StackPanel>
+        </materialDesign:Card>
+    </Grid>
+</UserControl>
