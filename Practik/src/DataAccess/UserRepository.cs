@@ -1,5 +1,6 @@
 using Core;
 using Microsoft.Data.SqlClient;
+using System;
 using System.Collections.Generic;
 
 namespace DataAccess
@@ -196,6 +197,83 @@ SELECT TOP (1) RoleId FROM UserRoles WHERE Code = @RoleCode;";
                 command.Parameters.AddWithValue("@UserId", userId);
                 command.Parameters.AddWithValue("@RoleCode", roleCode);
                 return command.ExecuteNonQuery() > 0;
+            }
+        }
+
+        public bool DeleteUser(int userId, int reassignToUserId)
+        {
+            using (SqlConnection connection = Database.GetConnection())
+            {
+                connection.Open();
+                using var transaction = connection.BeginTransaction();
+
+                try
+                {
+                    const string ensureReassignTargetSql = @"
+IF @UserId = @ReassignToUserId
+BEGIN
+    THROW 50005, 'Cannot delete user: reassign target must be different user.', 1;
+END
+
+IF NOT EXISTS (SELECT 1 FROM Users WHERE UserId = @ReassignToUserId)
+BEGIN
+    THROW 50006, 'Cannot delete user: reassign target user does not exist.', 1;
+END
+";
+
+                    using (SqlCommand ensureCmd = new SqlCommand(ensureReassignTargetSql, connection, transaction))
+                    {
+                        ensureCmd.Parameters.AddWithValue("@UserId", userId);
+                        ensureCmd.Parameters.AddWithValue("@ReassignToUserId", reassignToUserId);
+                        ensureCmd.ExecuteNonQuery();
+                    }
+
+                    const string reassignSql = @"
+UPDATE RepairOrders SET CreatedByUserId = @ReassignToUserId WHERE CreatedByUserId = @UserId;
+UPDATE RepairOrderStatusHistories SET UserId = @ReassignToUserId WHERE UserId = @UserId;
+UPDATE AuditLogs SET UserId = @ReassignToUserId WHERE UserId = @UserId;
+
+IF COL_LENGTH('Clients', 'OwnerUserId') IS NOT NULL
+BEGIN
+    UPDATE Clients SET OwnerUserId = @ReassignToUserId WHERE OwnerUserId = @UserId;
+END
+
+IF COL_LENGTH('Devices', 'OwnerUserId') IS NOT NULL
+BEGIN
+    UPDATE Devices SET OwnerUserId = @ReassignToUserId WHERE OwnerUserId = @UserId;
+END
+";
+
+                    using (SqlCommand reassignCmd = new SqlCommand(reassignSql, connection, transaction))
+                    {
+                        reassignCmd.Parameters.AddWithValue("@UserId", userId);
+                        reassignCmd.Parameters.AddWithValue("@ReassignToUserId", reassignToUserId);
+                        reassignCmd.ExecuteNonQuery();
+                    }
+
+                    const string cleanupSql = @"
+DELETE FROM RepairOrderAssignments WHERE UserId = @UserId;
+";
+
+                    using (SqlCommand cleanupCmd = new SqlCommand(cleanupSql, connection, transaction))
+                    {
+                        cleanupCmd.Parameters.AddWithValue("@UserId", userId);
+                        cleanupCmd.ExecuteNonQuery();
+                    }
+
+                    const string deleteSql = "DELETE FROM Users WHERE UserId = @UserId";
+                    using SqlCommand deleteCmd = new SqlCommand(deleteSql, connection, transaction);
+                    deleteCmd.Parameters.AddWithValue("@UserId", userId);
+                    int affected = deleteCmd.ExecuteNonQuery();
+
+                    transaction.Commit();
+                    return affected > 0;
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
             }
         }
     }

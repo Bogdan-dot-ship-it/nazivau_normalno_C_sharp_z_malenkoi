@@ -72,6 +72,7 @@
 
                 <Button Content="Update Status" Command="{Binding UpdateStatusCommand}" Margin="0,0,0,8"/>
                 <Button Content="Mark Completed" Command="{Binding MarkCompletedCommand}" Margin="0,0,0,8"/>
+                <Button Content="Create Work Act" Command="{Binding CreateWorkActCommand}" Margin="0,0,0,8"/>
                 <Button Content="Delete" Command="{Binding DeleteOrderCommand}"/>
             </StackPanel>
         </materialDesign:Card>

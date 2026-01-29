@@ -1,6 +1,7 @@
 using BusinessLogic;
 using Core;
 using System.Collections.ObjectModel;
+using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace UI
@@ -12,19 +13,64 @@ namespace UI
 
         // Create User properties
         private string _username = string.Empty;
-        public string Username { get => _username; set { _username = value; OnPropertyChanged(); } }
+        public string Username
+        {
+            get => _username;
+            set
+            {
+                _username = value;
+                OnPropertyChanged();
+                (CreateUserCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
 
         private string _password = string.Empty;
-        public string Password { get => _password; set { _password = value; OnPropertyChanged(); } }
+        public string Password
+        {
+            get => _password;
+            set
+            {
+                _password = value;
+                OnPropertyChanged();
+                (CreateUserCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
 
-        private string _role = string.Empty;
-        public string Role { get => _role; set { _role = value; OnPropertyChanged(); } }
+        private string _role = "User";
+        public string Role
+        {
+            get => _role;
+            set
+            {
+                _role = value;
+                OnPropertyChanged();
+                (CreateUserCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
 
         private string _firstName = string.Empty;
-        public string FirstName { get => _firstName; set { _firstName = value; OnPropertyChanged(); } }
+        public string FirstName
+        {
+            get => _firstName;
+            set
+            {
+                _firstName = value;
+                OnPropertyChanged();
+                (CreateUserCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
 
         private string _lastName = string.Empty;
-        public string LastName { get => _lastName; set { _lastName = value; OnPropertyChanged(); } }
+        public string LastName
+        {
+            get => _lastName;
+            set
+            {
+                _lastName = value;
+                OnPropertyChanged();
+                (CreateUserCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
 
         // Assign Technician properties
         private RepairOrder? _selectedRepairOrder;
@@ -36,6 +82,55 @@ namespace UI
                 _selectedRepairOrder = value;
                 OnPropertyChanged();
                 (AssignTechnicianCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+
+        private void DeleteUser()
+        {
+            if (SelectedUser == null)
+                return;
+
+            if (SelectedUser.UserId == _currentUser.UserId)
+            {
+                System.Windows.MessageBox.Show(
+                    "You cannot delete the currently logged-in user.",
+                    "Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+                return;
+            }
+
+            var confirm = System.Windows.MessageBox.Show(
+                $"Delete user '{SelectedUser.Username}'?",
+                "Confirm deletion",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+
+            if (confirm != System.Windows.MessageBoxResult.Yes)
+                return;
+
+            try
+            {
+                bool deleted = _userService.DeleteUser(SelectedUser.UserId, _currentUser.UserId);
+                if (!deleted)
+                {
+                    System.Windows.MessageBox.Show(
+                        "User was not deleted.",
+                        "Delete user",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Warning);
+                }
+
+                LoadUsersAndRoles();
+                LoadData();
+            }
+            catch (System.Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Failed to delete user: {ex.Message}",
+                    "Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
             }
         }
 
@@ -67,6 +162,7 @@ namespace UI
                 OnPropertyChanged();
                 SyncSelectedUserRole();
                 (UpdateUserRoleCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (DeleteUserCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
 
@@ -86,6 +182,7 @@ namespace UI
         public ICommand AssignTechnicianCommand { get; }
         public ICommand RefreshUsersCommand { get; }
         public ICommand UpdateUserRoleCommand { get; }
+        public ICommand DeleteUserCommand { get; }
 
         private readonly User _currentUser;
 
@@ -94,10 +191,11 @@ namespace UI
             _currentUser = currentUser;
             RepairOrders = new ObservableCollection<RepairOrder>();
             Technicians = new ObservableCollection<User>();
-            CreateUserCommand = new RelayCommand(CreateUser, CanCreateUser);
+            CreateUserCommand = new RelayCommand(CreateUser);
             AssignTechnicianCommand = new RelayCommand(AssignTechnician, CanAssignTechnician);
             RefreshUsersCommand = new RelayCommand(_ => LoadUsersAndRoles());
             UpdateUserRoleCommand = new RelayCommand(_ => UpdateUserRole(), _ => CanUpdateUserRole());
+            DeleteUserCommand = new RelayCommand(_ => DeleteUser(), _ => CanDeleteUser());
             LoadData();
             LoadUsersAndRoles();
         }
@@ -108,17 +206,33 @@ namespace UI
                    && SelectedTechnicianId.HasValue && SelectedTechnicianId.Value > 0;
         }
 
-        private bool CanCreateUser(object? obj)
-        {
-            return !string.IsNullOrWhiteSpace(Username) &&
-                   !string.IsNullOrWhiteSpace(Password) &&
-                   !string.IsNullOrWhiteSpace(FirstName) &&
-                   !string.IsNullOrWhiteSpace(LastName) &&
-                   !string.IsNullOrWhiteSpace(Role);
-        }
-
         private void CreateUser(object? obj)
         {
+            string passwordValue = (obj as PasswordBox)?.Password ?? obj as string ?? Password;
+
+            bool missingUsername = string.IsNullOrWhiteSpace(Username);
+            bool missingPassword = string.IsNullOrWhiteSpace(passwordValue);
+            bool missingFirstName = string.IsNullOrWhiteSpace(FirstName);
+            bool missingLastName = string.IsNullOrWhiteSpace(LastName);
+            bool missingRole = string.IsNullOrWhiteSpace(Role);
+
+            if (missingUsername || missingPassword || missingFirstName || missingLastName || missingRole)
+            {
+                string message = "Please fill in all fields." +
+                                 $"\n\nUsername empty: {missingUsername}" +
+                                 $"\nPassword empty: {missingPassword} (len={(passwordValue ?? string.Empty).Length})" +
+                                 $"\nFirstName empty: {missingFirstName}" +
+                                 $"\nLastName empty: {missingLastName}" +
+                                 $"\nRole empty: {missingRole} (value='{Role ?? string.Empty}')";
+
+                System.Windows.MessageBox.Show(
+                    message,
+                    "Create user",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
             try
             {
                 string roleCode = Role.ToUpper() switch
@@ -129,13 +243,13 @@ namespace UI
                     _ => throw new System.InvalidOperationException("Invalid role selected.")
                 };
 
-                _userService.RegisterUser(Username, Password, FirstName, LastName, roleCode);
+                _userService.RegisterUser(Username, passwordValue, FirstName, LastName, roleCode);
 
                 Username = string.Empty;
                 Password = string.Empty;
                 FirstName = string.Empty;
                 LastName = string.Empty;
-                Role = string.Empty;
+                Role = "User";
 
                 LoadUsersAndRoles();
             }
@@ -160,6 +274,7 @@ namespace UI
             SyncSelectedUserRole();
 
             (UpdateUserRoleCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (DeleteUserCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
 
         private void SyncSelectedUserRole()
@@ -181,6 +296,13 @@ namespace UI
             }
 
             SelectedUserRole = null;
+        }
+
+        private bool CanDeleteUser()
+        {
+            return SelectedUser != null
+                   && SelectedUser.UserId > 0
+                   && SelectedUser.UserId != _currentUser.UserId;
         }
 
         private bool CanUpdateUserRole()

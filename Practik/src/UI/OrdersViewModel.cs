@@ -1,5 +1,7 @@
 using BusinessLogic;
 using Core;
+using Microsoft.Win32;
+using System.IO;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 
@@ -10,6 +12,7 @@ namespace UI
         private readonly RepairOrderService _repairOrderService = new RepairOrderService();
         private readonly DeviceService _deviceService = new DeviceService();
         private readonly StatusService _statusService = new StatusService();
+        private readonly WorkReportService _workReportService = new WorkReportService();
         private readonly User _currentUser;
 
         public ObservableCollection<RepairOrder> Orders { get; } = new ObservableCollection<RepairOrder>();
@@ -26,6 +29,7 @@ namespace UI
                 OnPropertyChanged();
                 (DeleteOrderCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 (UpdateStatusCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (CreateWorkActCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
 
@@ -58,6 +62,7 @@ namespace UI
         public ICommand DeleteOrderCommand { get; }
         public ICommand UpdateStatusCommand { get; }
         public ICommand MarkCompletedCommand { get; }
+        public ICommand CreateWorkActCommand { get; }
 
         public OrdersViewModel(User currentUser)
         {
@@ -67,7 +72,74 @@ namespace UI
             DeleteOrderCommand = new RelayCommand(_ => DeleteOrder(), _ => CanDeleteOrder());
             UpdateStatusCommand = new RelayCommand(_ => UpdateStatus(), _ => CanUpdateStatus());
             MarkCompletedCommand = new RelayCommand(_ => MarkCompleted(), _ => CanMarkCompleted());
+            CreateWorkActCommand = new RelayCommand(_ => CreateWorkAct(), _ => CanCreateWorkAct());
             Load();
+        }
+
+        private bool CanCreateWorkAct()
+        {
+            string role = _currentUser.Role?.Code?.Trim() ?? string.Empty;
+            return string.Equals(role, "MASTER", System.StringComparison.OrdinalIgnoreCase)
+                   && SelectedOrder != null
+                   && (string.Equals(SelectedOrder.Status?.Trim(), "DONE", System.StringComparison.OrdinalIgnoreCase)
+                       || string.Equals(SelectedOrder.Status?.Trim(), "COMPLETED", System.StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void CreateWorkAct()
+        {
+            if (SelectedOrder == null)
+                return;
+
+            try
+            {
+                string reportContent =
+                    $"Work act for order {SelectedOrder.OrderId}.\n" +
+                    $"Client: {SelectedOrder.ClientName}\n" +
+                    $"Device: {SelectedOrder.DeviceTypeName} {SelectedOrder.Manufacturer} {SelectedOrder.Model}\n" +
+                    $"Technician: {SelectedOrder.TechnicianName}\n" +
+                    $"Problem: {SelectedOrder.ProblemDescription}\n" +
+                    $"Status: {SelectedOrder.Status}";
+
+                var dialog = new SaveFileDialog
+                {
+                    Title = "Save Work Act",
+                    FileName = $"WorkAct_Order_{SelectedOrder.OrderId}",
+                    DefaultExt = ".txt",
+                    Filter = "Text file (*.txt)|*.txt|Markdown (*.md)|*.md|All files (*.*)|*.*",
+                    AddExtension = true,
+                    OverwritePrompt = true
+                };
+
+                bool? result = dialog.ShowDialog();
+                if (result != true)
+                    return;
+
+                File.WriteAllText(dialog.FileName, reportContent);
+
+                try
+                {
+                    _workReportService.CreateWorkReport(SelectedOrder.OrderId, reportContent);
+                }
+                catch (System.Exception ex)
+                {
+                    System.Windows.MessageBox.Show(
+                        $"File saved to: {dialog.FileName}\n\nNote: {ex.Message}",
+                        "Work act exported",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Warning);
+                    return;
+                }
+
+                System.Windows.MessageBox.Show(
+                    $"File saved to: {dialog.FileName}",
+                    "Work act exported",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            catch (System.Exception ex)
+            {
+                System.Windows.MessageBox.Show(ex.Message, "Create work act failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
         }
 
         private bool CanCreateOrder()
@@ -193,6 +265,7 @@ namespace UI
             (DeleteOrderCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (UpdateStatusCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (MarkCompletedCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            (CreateWorkActCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 }

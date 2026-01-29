@@ -82,6 +82,11 @@ namespace BusinessLogic
             return _userRepository.GetUsersByRole(role);
         }
 
+        public bool DeleteUser(int userId, int reassignToUserId)
+        {
+            return _userRepository.DeleteUser(userId, reassignToUserId);
+        }
+
         private static string HashPassword(string password)
         {
             byte[] salt = RandomNumberGenerator.GetBytes(Pbkdf2SaltSizeBytes);

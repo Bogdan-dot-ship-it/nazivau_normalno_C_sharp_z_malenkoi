@@ -14,15 +14,15 @@
                     <StackPanel>
                         <TextBlock Text="Create User" Style="{StaticResource MaterialDesignHeadline6TextBlock}" Margin="0 0 0 16" HorizontalAlignment="Center"/>
                         <TextBox materialDesign:HintAssist.Hint="Username" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Margin="0 0 0 8"/>
-                        <PasswordBox materialDesign:HintAssist.Hint="Password" Style="{StaticResource MaterialDesignOutlinedPasswordBox}" local:PasswordBoxHelper.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0 0 0 8"/>
+                        <PasswordBox x:Name="CreateUserPasswordBox" materialDesign:HintAssist.Hint="Password" Style="{StaticResource MaterialDesignOutlinedPasswordBox}" local:PasswordBoxHelper.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0 0 0 8"/>
                         <TextBox materialDesign:HintAssist.Hint="First Name" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding FirstName, UpdateSourceTrigger=PropertyChanged}" Margin="0 0 0 8"/>
                         <TextBox materialDesign:HintAssist.Hint="Last Name" Style="{StaticResource MaterialDesignOutlinedTextBox}" Text="{Binding LastName, UpdateSourceTrigger=PropertyChanged}" Margin="0 0 0 8"/>
-                        <ComboBox materialDesign:HintAssist.Hint="Role" Style="{StaticResource MaterialDesignOutlinedComboBox}" SelectedValue="{Binding Role, Mode=TwoWay}" SelectedValuePath="Content" Margin="0 0 0 16">
+                        <ComboBox materialDesign:HintAssist.Hint="Role" Style="{StaticResource MaterialDesignOutlinedComboBox}" SelectedValue="{Binding Role, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" SelectedIndex="2" Margin="0 0 0 16">
                             <ComboBoxItem Content="Administrator"/>
                             <ComboBoxItem Content="Master"/>
                             <ComboBoxItem Content="User"/>
                         </ComboBox>
-                        <Button Content="Create User" Command="{Binding CreateUserCommand}"/>
+                        <Button Content="Create User" Command="{Binding CreateUserCommand}" CommandParameter="{Binding ElementName=CreateUserPasswordBox}" IsEnabled="True"/>
                     </StackPanel>
                 </materialDesign:Card>
             </Grid>
@@ -61,6 +61,7 @@
                               DisplayMemberPath="Code"
                               SelectedItem="{Binding SelectedUserRole}"/>
                     <Button Content="Save" Width="120" Margin="5" Command="{Binding UpdateUserRoleCommand}"/>
+                    <Button Content="Delete User" Width="140" Margin="5" Command="{Binding DeleteUserCommand}"/>
                 </StackPanel>
             </Grid>
         </TabItem>
