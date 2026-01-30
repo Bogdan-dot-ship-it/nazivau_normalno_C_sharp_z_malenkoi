@@ -29,7 +29,39 @@ namespace UI
                 OnPropertyChanged();
                 (DeleteOrderCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 (UpdateStatusCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (MarkCompletedCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 (CreateWorkActCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+
+        public void SaveProblemDescription(RepairOrder order)
+        {
+            if (order == null)
+                return;
+
+            string role = _currentUser.Role?.Code?.Trim() ?? string.Empty;
+            bool canEdit = string.Equals(role, "ADMIN", System.StringComparison.OrdinalIgnoreCase)
+                           || string.Equals(role, "MASTER", System.StringComparison.OrdinalIgnoreCase)
+                           || string.Equals(role, "USER", System.StringComparison.OrdinalIgnoreCase);
+
+            if (!canEdit)
+                return;
+
+            try
+            {
+                bool updated = _repairOrderService.UpdateProblemDescription(order.OrderId, order.ProblemDescription);
+                if (!updated)
+                {
+                    System.Windows.MessageBox.Show(
+                        "Failed to update problem description.",
+                        "Update failed",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Warning);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                System.Windows.MessageBox.Show(ex.Message, "Update problem failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
 
@@ -79,7 +111,8 @@ namespace UI
         private bool CanCreateWorkAct()
         {
             string role = _currentUser.Role?.Code?.Trim() ?? string.Empty;
-            return string.Equals(role, "MASTER", System.StringComparison.OrdinalIgnoreCase)
+            return (string.Equals(role, "MASTER", System.StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(role, "ADMIN", System.StringComparison.OrdinalIgnoreCase))
                    && SelectedOrder != null
                    && (string.Equals(SelectedOrder.Status?.Trim(), "DONE", System.StringComparison.OrdinalIgnoreCase)
                        || string.Equals(SelectedOrder.Status?.Trim(), "COMPLETED", System.StringComparison.OrdinalIgnoreCase));
@@ -171,7 +204,8 @@ namespace UI
         private bool CanMarkCompleted()
         {
             string role = _currentUser.Role?.Code?.Trim() ?? string.Empty;
-            return string.Equals(role, "MASTER", System.StringComparison.OrdinalIgnoreCase)
+            return (string.Equals(role, "MASTER", System.StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(role, "ADMIN", System.StringComparison.OrdinalIgnoreCase))
                    && SelectedOrder != null;
         }
 

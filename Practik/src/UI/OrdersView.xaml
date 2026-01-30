@@ -16,18 +16,21 @@
                   ItemsSource="{Binding Orders}"
                   SelectedItem="{Binding SelectedOrder}"
                   AutoGenerateColumns="False"
-                  IsReadOnly="True"
+                  IsReadOnly="False"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
                   Style="{StaticResource MaterialDesignDataGrid}"
                   HeadersVisibility="All"
-                  LoadingRow="DataGrid_LoadingRow">
+                  LoadingRow="DataGrid_LoadingRow"
+                  RowEditEnding="OrdersGrid_RowEditEnding">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Client" Binding="{Binding ClientName}" Width="220"/>
-                <DataGridTextColumn Header="Type" Binding="{Binding DeviceTypeName}" Width="140"/>
-                <DataGridTextColumn Header="Device" Width="220" Binding="{Binding Manufacturer}"/>
-                <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="160"/>
-                <DataGridTextColumn Header="Technician" Binding="{Binding TechnicianName}" Width="140"/>
-                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120"/>
-                <DataGridTextColumn Header="Problem" Binding="{Binding ProblemDescription}" Width="*"/>
+                <DataGridTextColumn Header="Client" Binding="{Binding ClientName}" Width="220" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Type" Binding="{Binding DeviceTypeName}" Width="140" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Device" Width="220" Binding="{Binding Manufacturer}" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="160" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Technician" Binding="{Binding TechnicianName}" Width="140" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Що ремонтувати" Binding="{Binding ProblemDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="*"/>
             </DataGrid.Columns>
         </DataGrid>
 
@@ -63,6 +66,14 @@
                 <Button Content="Create" Command="{Binding CreateOrderCommand}" Margin="0,0,0,16"/>
 
                 <TextBlock Text="Manage selected order" Style="{StaticResource MaterialDesignSubtitle1TextBlock}" Margin="0,0,0,8"/>
+
+                <TextBox Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                         Text="{Binding SelectedOrder.ProblemDescription}"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         IsReadOnly="True"
+                         Height="100"
+                         Margin="0,0,0,8"/>
 
                 <ComboBox Style="{StaticResource MaterialDesignOutlinedComboBox}"
                           materialDesign:HintAssist.Hint="Status"

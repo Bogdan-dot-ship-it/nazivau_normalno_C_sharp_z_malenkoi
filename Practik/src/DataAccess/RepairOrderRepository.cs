@@ -34,6 +34,19 @@ namespace DataAccess
             }
         }
 
+        public bool UpdateProblemDescription(int orderId, string problemDescription)
+        {
+            using (SqlConnection connection = Database.GetConnection())
+            {
+                connection.Open();
+                const string query = "UPDATE RepairOrders SET ProblemDescription = @ProblemDescription WHERE OrderId = @OrderId";
+                using SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@OrderId", orderId);
+                command.Parameters.AddWithValue("@ProblemDescription", problemDescription ?? string.Empty);
+                return command.ExecuteNonQuery() > 0;
+            }
+        }
+
         public bool DeleteRepairOrder(int ownerUserId, int orderId)
         {
             using (SqlConnection connection = Database.GetConnection())

@@ -56,22 +56,6 @@
                     <Button Content="Відкрити" Command="{Binding GoToOrdersCommand}"/>
                 </StackPanel>
             </materialDesign:Card>
-
-            <materialDesign:Card Margin="0,0,16,16" Padding="16" Width="260" Visibility="{Binding CanWorkWithDevices, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <StackPanel>
-                    <TextBlock Text="Пристрої" Style="{StaticResource MaterialDesignHeadline6TextBlock}" Margin="0,0,0,8"/>
-                    <TextBlock Text="Список пристроїв та реєстрація нового." TextWrapping="Wrap" Margin="0,0,0,16"/>
-                    <Button Content="Відкрити" Command="{Binding GoToDevicesCommand}"/>
-                </StackPanel>
-            </materialDesign:Card>
-
-            <materialDesign:Card Margin="0,0,16,16" Padding="16" Width="260" Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <StackPanel>
-                    <TextBlock Text="Адміністрування" Style="{StaticResource MaterialDesignHeadline6TextBlock}" Margin="0,0,0,8"/>
-                    <TextBlock Text="Створення користувачів та призначення майстрів." TextWrapping="Wrap" Margin="0,0,0,16"/>
-                    <Button Content="Відкрити" Command="{Binding GoToAdminCommand}"/>
-                </StackPanel>
-            </materialDesign:Card>
         </UniformGrid>
     </Grid>
 </UserControl>

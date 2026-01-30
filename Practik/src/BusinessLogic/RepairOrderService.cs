@@ -50,6 +50,11 @@ namespace BusinessLogic
             _repairOrderRepository.UpdateRepairStatus(orderId, status, userId);
         }
 
+        public bool UpdateProblemDescription(int orderId, string problemDescription)
+        {
+            return _repairOrderRepository.UpdateProblemDescription(orderId, problemDescription);
+        }
+
         public List<RepairOrder> GetRepairOrdersByTechnician(int technicianId)
         {
             return _repairOrderRepository.GetRepairOrdersByTechnician(technicianId);
