@@ -38,6 +38,9 @@
             <DataTemplate DataType="{x:Type local:OrdersViewModel}">
                 <local:OrdersView/>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type local:ReportsViewModel}">
+                <local:ReportsView/>
+            </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

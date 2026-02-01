@@ -79,11 +79,21 @@
                           materialDesign:HintAssist.Hint="Status"
                           ItemsSource="{Binding Statuses}"
                           SelectedItem="{Binding SelectedStatus}"
+                          Visibility="{Binding CanManageStatus, Converter={StaticResource BooleanToVisibilityConverter}}"
                           Margin="0,0,0,8"/>
 
-                <Button Content="Update Status" Command="{Binding UpdateStatusCommand}" Margin="0,0,0,8"/>
-                <Button Content="Mark Completed" Command="{Binding MarkCompletedCommand}" Margin="0,0,0,8"/>
-                <Button Content="Create Work Act" Command="{Binding CreateWorkActCommand}" Margin="0,0,0,8"/>
+                <Button Content="Update Status"
+                        Command="{Binding UpdateStatusCommand}"
+                        Visibility="{Binding CanManageStatus, Converter={StaticResource BooleanToVisibilityConverter}}"
+                        Margin="0,0,0,8"/>
+                <Button Content="Mark Completed"
+                        Command="{Binding MarkCompletedCommand}"
+                        Visibility="{Binding CanManageStatus, Converter={StaticResource BooleanToVisibilityConverter}}"
+                        Margin="0,0,0,8"/>
+                <Button Content="Create Work Act"
+                        Command="{Binding CreateWorkActCommand}"
+                        Visibility="{Binding CanManageStatus, Converter={StaticResource BooleanToVisibilityConverter}}"
+                        Margin="0,0,0,8"/>
                 <Button Content="Delete" Command="{Binding DeleteOrderCommand}"/>
             </StackPanel>
         </materialDesign:Card>

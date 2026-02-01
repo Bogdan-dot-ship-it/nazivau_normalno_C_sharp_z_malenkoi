@@ -34,6 +34,91 @@ namespace DataAccess
             }
         }
 
+        public WorkActReportData GetWorkActReportData(int orderId)
+        {
+            using (SqlConnection connection = Database.GetConnection())
+            {
+                connection.Open();
+
+                const string query = @"
+SELECT ro.OrderId,
+       ro.DateCreated AS DateReceived,
+       ro.ProblemDescription,
+       ros.Code AS CurrentStatus,
+       c.FirstName AS ClientFirstName,
+       c.LastName AS ClientLastName,
+       c.PhoneNumber AS ClientPhone,
+       c.Email AS ClientEmail,
+       dt.Name AS DeviceTypeName,
+       d.Manufacturer,
+       d.Model,
+       d.SerialNumber,
+       CASE
+            WHEN accRole.Code IS NULL THEN N'Адміністратор'
+            WHEN UPPER(LTRIM(RTRIM(accRole.Code))) IN ('ADMIN','MASTER') THEN N'Адміністратор'
+            ELSE COALESCE(NULLIF(LTRIM(RTRIM(CONCAT(acc.FirstName, ' ', acc.LastName))), ''), acc.Username)
+       END AS AcceptedBy,
+       COALESCE(NULLIF(LTRIM(RTRIM(CONCAT(tech.FirstName, ' ', tech.LastName))), ''), tech.Username) AS Technician,
+       roa.DateAssigned,
+       comp.DateCompleted,
+       comp.CompletedBy,
+       N'Адміністратор' AS AssignedBy
+FROM RepairOrders ro
+INNER JOIN Devices d ON d.DeviceId = ro.DeviceId
+INNER JOIN Clients c ON c.ClientId = d.ClientId
+INNER JOIN DeviceTypes dt ON dt.DeviceTypeId = d.DeviceTypeId
+INNER JOIN RepairOrderStatuses ros ON ro.CurrentStatusId = ros.StatusId
+LEFT JOIN Users acc ON acc.UserId = ro.CreatedByUserId
+LEFT JOIN UserRoles accRole ON accRole.RoleId = acc.RoleId
+LEFT JOIN RepairOrderAssignments roa ON roa.OrderId = ro.OrderId
+LEFT JOIN Users tech ON tech.UserId = roa.UserId
+OUTER APPLY (
+    SELECT TOP (1)
+           h.DateChanged AS DateCompleted,
+           COALESCE(NULLIF(LTRIM(RTRIM(CONCAT(u.FirstName, ' ', u.LastName))), ''), u.Username) AS CompletedBy
+    FROM RepairOrderStatusHistories h
+    INNER JOIN RepairOrderStatuses s ON s.StatusId = h.StatusId
+    INNER JOIN Users u ON u.UserId = h.UserId
+    WHERE h.OrderId = ro.OrderId
+      AND UPPER(LTRIM(RTRIM(s.Code))) = 'DONE'
+    ORDER BY h.DateChanged DESC
+) comp
+WHERE ro.OrderId = @OrderId;
+";
+
+                using SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@OrderId", orderId);
+
+                using SqlDataReader reader = command.ExecuteReader();
+                if (!reader.Read())
+                    throw new InvalidOperationException($"Repair order {orderId} not found.");
+
+                var data = new WorkActReportData
+                {
+                    OrderId = reader.GetInt32(reader.GetOrdinal("OrderId")),
+                    DateReceived = reader.GetDateTime(reader.GetOrdinal("DateReceived")),
+                    ProblemDescription = reader.GetString(reader.GetOrdinal("ProblemDescription")),
+                    CurrentStatus = reader.GetString(reader.GetOrdinal("CurrentStatus")),
+                    ClientFirstName = reader.GetString(reader.GetOrdinal("ClientFirstName")),
+                    ClientLastName = reader.GetString(reader.GetOrdinal("ClientLastName")),
+                    ClientPhone = reader.GetString(reader.GetOrdinal("ClientPhone")),
+                    ClientEmail = reader.GetString(reader.GetOrdinal("ClientEmail")),
+                    DeviceTypeName = reader.GetString(reader.GetOrdinal("DeviceTypeName")),
+                    Manufacturer = reader.GetString(reader.GetOrdinal("Manufacturer")),
+                    Model = reader.GetString(reader.GetOrdinal("Model")),
+                    SerialNumber = reader.GetString(reader.GetOrdinal("SerialNumber")),
+                    AcceptedBy = reader.IsDBNull(reader.GetOrdinal("AcceptedBy")) ? string.Empty : reader.GetString(reader.GetOrdinal("AcceptedBy")),
+                    Technician = reader.IsDBNull(reader.GetOrdinal("Technician")) ? string.Empty : reader.GetString(reader.GetOrdinal("Technician")),
+                    DateAssigned = reader.IsDBNull(reader.GetOrdinal("DateAssigned")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("DateAssigned")),
+                    DateCompleted = reader.IsDBNull(reader.GetOrdinal("DateCompleted")) ? (DateTime?)null : reader.GetDateTime(reader.GetOrdinal("DateCompleted")),
+                    CompletedBy = reader.IsDBNull(reader.GetOrdinal("CompletedBy")) ? string.Empty : reader.GetString(reader.GetOrdinal("CompletedBy")),
+                    AssignedBy = reader.IsDBNull(reader.GetOrdinal("AssignedBy")) ? string.Empty : reader.GetString(reader.GetOrdinal("AssignedBy"))
+                };
+
+                return data;
+            }
+        }
+
         public bool UpdateProblemDescription(int orderId, string problemDescription)
         {
             using (SqlConnection connection = Database.GetConnection())
@@ -200,14 +285,18 @@ namespace DataAccess
                         SqlCommand updateCmd = new SqlCommand(updateQuery, connection, transaction);
                         updateCmd.Parameters.AddWithValue("@StatusId", statusId);
                         updateCmd.Parameters.AddWithValue("@OrderId", orderId);
-                        updateCmd.ExecuteNonQuery();
+                        int affected = updateCmd.ExecuteNonQuery();
+                        if (affected <= 0)
+                            throw new Exception($"Order {orderId} not found or status was not updated.");
 
                         string historyQuery = "INSERT INTO RepairOrderStatusHistories (OrderId, StatusId, UserId, DateChanged) VALUES (@OrderId, @StatusId, @UserId, GETDATE())";
                         SqlCommand historyCmd = new SqlCommand(historyQuery, connection, transaction);
                         historyCmd.Parameters.AddWithValue("@OrderId", orderId);
                         historyCmd.Parameters.AddWithValue("@StatusId", statusId);
                         historyCmd.Parameters.AddWithValue("@UserId", userId);
-                        historyCmd.ExecuteNonQuery();
+                        int historyAffected = historyCmd.ExecuteNonQuery();
+                        if (historyAffected <= 0)
+                            throw new Exception("Failed to write status history.");
 
                         transaction.Commit();
                     }

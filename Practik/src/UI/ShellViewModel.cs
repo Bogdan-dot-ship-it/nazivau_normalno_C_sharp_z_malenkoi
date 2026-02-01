@@ -36,6 +36,7 @@ namespace UI
                 OnPropertyChanged(nameof(CanShowClients));
                 OnPropertyChanged(nameof(CanShowOrders));
                 OnPropertyChanged(nameof(CanShowDevices));
+                OnPropertyChanged(nameof(CanShowReports));
             }
         }
 
@@ -43,6 +44,8 @@ namespace UI
 
         public bool CanShowAdmin => IsUserLoggedIn && string.Equals(GetRoleCode(CurrentUser), "ADMIN", System.StringComparison.OrdinalIgnoreCase);
         public bool CanShowMaster => IsUserLoggedIn && string.Equals(GetRoleCode(CurrentUser), "MASTER", System.StringComparison.OrdinalIgnoreCase);
+
+        public bool CanShowReports => IsUserLoggedIn && (CanShowAdmin || CanShowMaster);
 
         public bool CanShowUser => IsUserLoggedIn && string.Equals(GetRoleCode(CurrentUser), "USER", System.StringComparison.OrdinalIgnoreCase);
 
@@ -54,6 +57,7 @@ namespace UI
         public ICommand ShowClientsViewCommand { get; }
         public ICommand ShowDevicesViewCommand { get; }
         public ICommand ShowOrdersViewCommand { get; }
+        public ICommand ShowReportsViewCommand { get; }
         public ICommand ShowAdminViewCommand { get; }
         public ICommand ShowMasterViewCommand { get; }
         public ICommand LogoutCommand { get; }
@@ -66,6 +70,7 @@ namespace UI
             ShowClientsViewCommand = new RelayCommand(_ => { if (CurrentUser != null) CurrentViewModel = new ClientsViewModel(CurrentUser); }, _ => IsUserLoggedIn);
             ShowDevicesViewCommand = new RelayCommand(_ => { if (CurrentUser != null) CurrentViewModel = new DevicesViewModel(CurrentUser); }, _ => IsUserLoggedIn);
             ShowOrdersViewCommand = new RelayCommand(_ => { if (CurrentUser != null) CurrentViewModel = new OrdersViewModel(CurrentUser); }, _ => IsUserLoggedIn);
+            ShowReportsViewCommand = new RelayCommand(_ => { if (CurrentUser != null) CurrentViewModel = new ReportsViewModel(CurrentUser); }, _ => CanShowReports);
             ShowAdminViewCommand = new RelayCommand(_ => { if (CurrentUser != null) CurrentViewModel = new AdminViewModel(CurrentUser); }, _ => CanShowAdminView());
             ShowMasterViewCommand = new RelayCommand(_ => { if (CurrentUser != null) CurrentViewModel = new MasterViewModel(CurrentUser); }, _ => CanShowMasterView());
             LogoutCommand = new RelayCommand(_ => Logout());

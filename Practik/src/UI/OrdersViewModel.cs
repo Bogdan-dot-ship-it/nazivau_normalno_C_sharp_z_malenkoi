@@ -1,8 +1,10 @@
 using BusinessLogic;
 using Core;
 using Microsoft.Win32;
+using System;
 using System.IO;
 using System.Collections.ObjectModel;
+using System.Text;
 using System.Windows.Input;
 
 namespace UI
@@ -15,9 +17,21 @@ namespace UI
         private readonly WorkReportService _workReportService = new WorkReportService();
         private readonly User _currentUser;
 
+        public bool CanManageStatus
+        {
+            get
+            {
+                string role = _currentUser.Role?.Code?.Trim() ?? string.Empty;
+                return string.Equals(role, "ADMIN", System.StringComparison.OrdinalIgnoreCase)
+                       || string.Equals(role, "MASTER", System.StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
         public ObservableCollection<RepairOrder> Orders { get; } = new ObservableCollection<RepairOrder>();
         public ObservableCollection<Device> Devices { get; } = new ObservableCollection<Device>();
         public ObservableCollection<string> Statuses { get; } = new ObservableCollection<string>();
+
+        private bool _suppressStatusAutoUpdate;
 
         private RepairOrder? _selectedOrder;
         public RepairOrder? SelectedOrder
@@ -27,6 +41,20 @@ namespace UI
             {
                 _selectedOrder = value;
                 OnPropertyChanged();
+
+                if (_selectedOrder != null)
+                {
+                    _suppressStatusAutoUpdate = true;
+                    try
+                    {
+                        SelectedStatus = _selectedOrder.Status ?? string.Empty;
+                    }
+                    finally
+                    {
+                        _suppressStatusAutoUpdate = false;
+                    }
+                }
+
                 (DeleteOrderCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 (UpdateStatusCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 (MarkCompletedCommand as RelayCommand)?.RaiseCanExecuteChanged();
@@ -80,6 +108,24 @@ namespace UI
                 _selectedStatus = value;
                 OnPropertyChanged();
                 (UpdateStatusCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
+                if (_suppressStatusAutoUpdate)
+                    return;
+
+                if (!CanManageStatus)
+                    return;
+
+                if (SelectedOrder == null)
+                    return;
+
+                if (string.IsNullOrWhiteSpace(_selectedStatus))
+                    return;
+
+                string current = SelectedOrder.Status ?? string.Empty;
+                if (string.Equals(current?.Trim(), _selectedStatus?.Trim(), System.StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                UpdateStatus();
             }
         }
 
@@ -125,7 +171,7 @@ namespace UI
 
             try
             {
-                string reportContent =
+                string reportContentText =
                     $"Work act for order {SelectedOrder.OrderId}.\n" +
                     $"Client: {SelectedOrder.ClientName}\n" +
                     $"Device: {SelectedOrder.DeviceTypeName} {SelectedOrder.Manufacturer} {SelectedOrder.Model}\n" +
@@ -138,7 +184,7 @@ namespace UI
                     Title = "Save Work Act",
                     FileName = $"WorkAct_Order_{SelectedOrder.OrderId}",
                     DefaultExt = ".txt",
-                    Filter = "Text file (*.txt)|*.txt|Markdown (*.md)|*.md|All files (*.*)|*.*",
+                    Filter = "Text file (*.txt)|*.txt|Markdown (*.md)|*.md|Excel CSV (*.csv)|*.csv|Word RTF (*.rtf)|*.rtf|All files (*.*)|*.*",
                     AddExtension = true,
                     OverwritePrompt = true
                 };
@@ -147,11 +193,20 @@ namespace UI
                 if (result != true)
                     return;
 
-                File.WriteAllText(dialog.FileName, reportContent);
+                string ext = (Path.GetExtension(dialog.FileName) ?? string.Empty).ToLowerInvariant();
+                string fileContent = ext switch
+                {
+                    ".md" => BuildMarkdownWorkAct(SelectedOrder),
+                    ".csv" => BuildCsvWorkAct(SelectedOrder),
+                    ".rtf" => BuildRtfWorkAct(reportContentText),
+                    _ => reportContentText
+                };
+
+                File.WriteAllText(dialog.FileName, fileContent, Encoding.UTF8);
 
                 try
                 {
-                    _workReportService.CreateWorkReport(SelectedOrder.OrderId, reportContent);
+                    _workReportService.CreateWorkReport(SelectedOrder.OrderId, reportContentText);
                 }
                 catch (System.Exception ex)
                 {
@@ -173,6 +228,101 @@ namespace UI
             {
                 System.Windows.MessageBox.Show(ex.Message, "Create work act failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
+        }
+
+        private static string BuildMarkdownWorkAct(RepairOrder order)
+        {
+            return "# Work act\n\n" +
+                   $"- Order: {order.OrderId}\n" +
+                   $"- Client: {order.ClientName}\n" +
+                   $"- Device: {order.DeviceTypeName} {order.Manufacturer} {order.Model}\n" +
+                   $"- Technician: {order.TechnicianName}\n" +
+                   $"- Problem: {order.ProblemDescription}\n" +
+                   $"- Status: {order.Status}\n";
+        }
+
+        private static string BuildCsvWorkAct(RepairOrder order)
+        {
+            static string Csv(string? value)
+            {
+                string v = value ?? string.Empty;
+                v = v.Replace("\"", "\"\"");
+                return $"\"{v}\"";
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("OrderId,Client,DeviceType,Manufacturer,Model,Technician,Problem,Status");
+            sb.Append(Csv(order.OrderId.ToString())).Append(',')
+              .Append(Csv(order.ClientName)).Append(',')
+              .Append(Csv(order.DeviceTypeName)).Append(',')
+              .Append(Csv(order.Manufacturer)).Append(',')
+              .Append(Csv(order.Model)).Append(',')
+              .Append(Csv(order.TechnicianName)).Append(',')
+              .Append(Csv(order.ProblemDescription)).Append(',')
+              .Append(Csv(order.Status));
+            return sb.ToString();
+        }
+
+        private static string BuildRtfWorkAct(string plainText)
+        {
+            var sb = new StringBuilder();
+            sb.Append("{\\rtf1\\ansi\\deff0\\uc1\\pard\\fs22 ");
+            sb.Append(EscapeRtf(plainText));
+            sb.Append("}");
+            return sb.ToString();
+        }
+
+        private static string EscapeRtf(string value)
+        {
+            var sb = new StringBuilder(value.Length);
+
+            for (int i = 0; i < value.Length; i++)
+            {
+                char c = value[i];
+
+                if (c == '\\')
+                {
+                    sb.Append("\\\\");
+                    continue;
+                }
+
+                if (c == '{')
+                {
+                    sb.Append("\\{");
+                    continue;
+                }
+
+                if (c == '}')
+                {
+                    sb.Append("\\}");
+                    continue;
+                }
+
+                if (c == '\r')
+                {
+                    if (i + 1 < value.Length && value[i + 1] == '\n')
+                        i++;
+                    sb.Append("\\par\n");
+                    continue;
+                }
+
+                if (c == '\n')
+                {
+                    sb.Append("\\par\n");
+                    continue;
+                }
+
+                if (c <= 0x7f)
+                {
+                    sb.Append(c);
+                }
+                else
+                {
+                    sb.Append("\\u").Append((short)c).Append('?');
+                }
+            }
+
+            return sb.ToString();
         }
 
         private bool CanCreateOrder()
@@ -260,18 +410,34 @@ namespace UI
             if (SelectedOrder == null)
                 return;
 
+            int selectedOrderId = SelectedOrder.OrderId;
+            string requestedStatus = SelectedStatus;
+
             try
             {
-                _repairOrderService.UpdateRepairStatus(SelectedOrder.OrderId, SelectedStatus, _currentUser.UserId);
-                Load();
+                _repairOrderService.UpdateRepairStatus(selectedOrderId, requestedStatus, _currentUser.UserId);
+                Load(selectedOrderId);
+
+                if (SelectedOrder != null)
+                {
+                    string actual = SelectedOrder.Status ?? string.Empty;
+                    if (!string.Equals(actual?.Trim(), requestedStatus?.Trim(), System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        System.Windows.MessageBox.Show(
+                            $"Status was not updated.\n\nOrder: {selectedOrderId}\nRequested: {requestedStatus}\nActual: {actual}",
+                            "Update status",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Warning);
+                    }
+                }
             }
             catch (System.Exception ex)
             {
-                System.Windows.MessageBox.Show(ex.Message, "Update status failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                System.Windows.MessageBox.Show(ex.ToString(), "Update status failed", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
 
-        private void Load()
+        private void Load(int? keepSelectedOrderId = null)
         {
             string role = _currentUser.Role?.Code?.Trim() ?? string.Empty;
 
@@ -294,6 +460,29 @@ namespace UI
             Orders.Clear();
             foreach (var o in data)
                 Orders.Add(o);
+
+            if (keepSelectedOrderId.HasValue)
+            {
+                RepairOrder? match = null;
+                foreach (var o in Orders)
+                {
+                    if (o.OrderId == keepSelectedOrderId.Value)
+                    {
+                        match = o;
+                        break;
+                    }
+                }
+
+                _suppressStatusAutoUpdate = true;
+                try
+                {
+                    SelectedOrder = match;
+                }
+                finally
+                {
+                    _suppressStatusAutoUpdate = false;
+                }
+            }
 
             (CreateOrderCommand as RelayCommand)?.RaiseCanExecuteChanged();
             (DeleteOrderCommand as RelayCommand)?.RaiseCanExecuteChanged();

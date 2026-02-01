@@ -10,6 +10,7 @@ namespace UI
     {
         private readonly UserService _userService = new UserService();
         private readonly RepairOrderService _repairOrderService = new RepairOrderService();
+        private readonly RepairLogService _repairLogService = new RepairLogService();
 
         // Create User properties
         private string _username = string.Empty;
@@ -334,6 +335,16 @@ namespace UI
             try
             {
                 _repairOrderService.AssignTechnician(SelectedRepairOrder.OrderId, SelectedTechnicianId.Value);
+                string technicianUsername = SelectedTechnicianId.Value.ToString();
+                foreach (var t in Technicians)
+                {
+                    if (t.UserId == SelectedTechnicianId.Value)
+                    {
+                        technicianUsername = t.Username;
+                        break;
+                    }
+                }
+                _repairLogService.CreateRepairLog(SelectedRepairOrder.OrderId, _currentUser.UserId, $"Assigned technician '{technicianUsername}'");
                 LoadData(); // Refresh data
             }
             catch (System.Exception ex)

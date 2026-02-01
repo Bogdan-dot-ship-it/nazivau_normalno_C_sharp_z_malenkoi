@@ -82,6 +82,21 @@
                     <ListBoxItem>
                         <i:Interaction.Triggers>
                             <i:EventTrigger EventName="PreviewMouseLeftButtonDown">
+                                <i:InvokeCommandAction Command="{Binding ShowReportsViewCommand}"/>
+                            </i:EventTrigger>
+                        </i:Interaction.Triggers>
+                        <ListBoxItem.Visibility>
+                            <Binding Path="CanShowReports" Converter="{StaticResource BooleanToVisibilityConverter}"/>
+                        </ListBoxItem.Visibility>
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="FileDocument" Margin="0,0,10,0" Width="24" Height="24" VerticalAlignment="Center"/>
+                            <TextBlock Text="Reports" FontSize="16" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+
+                    <ListBoxItem>
+                        <i:Interaction.Triggers>
+                            <i:EventTrigger EventName="PreviewMouseLeftButtonDown">
                                 <i:InvokeCommandAction Command="{Binding ShowAdminViewCommand}"/>
                             </i:EventTrigger>
                         </i:Interaction.Triggers>
