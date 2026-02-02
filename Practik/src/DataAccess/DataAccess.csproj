@@ -23,5 +23,13 @@
     <Compile Remove="Class1.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Migrations\\20260127194302_InitialCreate.cs" />
+    <Compile Remove="Migrations\\20260127194302_InitialCreate.Designer.cs" />
+    <Compile Remove="Migrations\\20260128093827_AlignSchema.cs" />
+    <Compile Remove="Migrations\\20260128093827_AlignSchema.Designer.cs" />
+    <Compile Remove="Migrations\\WorkshopDbContextModelSnapshot.cs" />
+  </ItemGroup>
+
   
 </Project>
